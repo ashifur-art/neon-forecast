@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NEON-FORECAST AI</title>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg:    #0a0a0a;
+    --bg2:   #0f0f0f;
+    --bg3:   #141414;
+    --bg4:   #1c1c1c;
+    --g:     #00ff9f;
+    --g2:    #00cc7d;
+    --r:     #ff0055;
+    --b:     #00cfff;
+    --y:     #ffcc00;
+    --text:  #e0e0e0;
+    --muted: #444;
+    --border:#1a1a1a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 15px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--g2); border-radius: 2px; }
+
+  /* ── Ticker ── */
+  .ticker {
+    background: #050505;
+    border-bottom: 1px solid #111;
+    padding: 5px 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .ticker-inner {
+    display: inline-block;
+    animation: tick 35s linear infinite;
+  }
+  @keyframes tick { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+  .ticker span { margin: 0 28px; font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--muted); }
+  .ticker .up  { color: var(--g); }
+  .ticker .dn  { color: var(--r); }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    background: #050505;
+    border-bottom: 1px solid #111;
+  }
+  .logo { font-family: 'Share Tech Mono', monospace; font-size: 20px; letter-spacing: 3px; color: var(--g); }
+  .logo span { color: var(--r); }
+  .logo-sub { font-size: 9px; color: var(--muted); letter-spacing: 3px; font-family: 'Share Tech Mono', monospace; margin-top: 2px; }
+  .header-right { display: flex; align-items: center; gap: 20px; }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--g); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+  .live-text { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--g); letter-spacing: 1px; display: flex; align-items: center; gap: 7px; }
+  .api-status { font-family: 'Share Tech Mono', monospace; font-size: 10px; padding: 4px 10px; border-radius: 2px; border: 1px solid; }
+  .api-status.online  { color: var(--g); border-color: var(--g2); background: #001a0e; }
+  .api-status.offline { color: var(--r); border-color: var(--r);  background: #1a0008; }
+
+  /* ── Layout ── */
+  .layout { display: grid; grid-template-columns: 240px 1fr; min-height: calc(100vh - 90px); }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    background: #050505;
+    border-right: 1px solid #111;
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .sb-title {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    padding-bottom: 8px;
+    border-bottom: 1px solid #111;
+    margin-bottom: 4px;
+  }
+  .drug-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: .15s;
+    margin-bottom: 3px;
+  }
+  .drug-btn:hover { background: #0f1f17; border-color: #0f2e1f; }
+  .drug-btn.active { background: #0a1f15; border-color: var(--g2); border-left: 2px solid var(--g); }
+  .drug-code { font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--g); }
+  .drug-label { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .drug-mae { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--muted); }
+
+  .sb-box { background: var(--bg2); border: 1px solid #111; border-radius: 3px; padding: 12px; }
+
+  /* Days slider */
+  .slider-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+  input[type=range] {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 3px;
+    background: #222;
+    border-radius: 2px;
+    outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--g);
+    cursor: pointer;
+  }
+  .slider-val { font-family: 'Share Tech Mono', monospace; font-size: 13px; color: var(--g); min-width: 28px; text-align: right; }
+
+  /* Stock input */
+  .stock-input {
+    width: 100%;
+    background: #0a0a0a;
+    border: 1px solid #1a1a1a;
+    border-radius: 3px;
+    padding: 7px 10px;
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    margin-top: 8px;
+    outline: none;
+  }
+  .stock-input:focus { border-color: var(--g2); }
+
+  .predict-btn {
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px;
+    background: #0a1f15;
+    border: 1px solid var(--g2);
+    color: var(--g);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: .15s;
+  }
+  .predict-btn:hover { background: #0f2e1f; }
+  .predict-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* ── Main content ── */
+  .content { padding: 18px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; }
+
+  /* KPI row */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .kpi {
+    background: var(--bg2);
+    border: 1px solid #111;
+    border-radius: 3px;
+    padding: 14px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .kpi.g::after { background: linear-gradient(90deg, transparent, var(--g), transparent); }
+  .kpi.r::after { background: linear-gradient(90deg, transparent, var(--r), transparent); }
+  .kpi.b::after { background: linear-gradient(90deg, transparent, var(--b), transparent); }
+  .kpi.y::after { background: linear-gradient(90deg, transparent, var(--y), transparent); }
+  .kpi-label { font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: 2px; color: var(--muted); margin-bottom: 6px; }
+  .kpi-val   { font-family: 'Share Tech Mono', monospace; font-size: 24px; line-height: 1; }
+  .kpi-val.g { color: var(--g); } .kpi-val.r { color: var(--r); } .kpi-val.b { color: var(--b); } .kpi-val.y { color: var(--y); }
+  .kpi-sub   { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  /* Chart cards */
+  .chart-card { background: var(--bg2); border: 1px solid #111; border-radius: 3px; padding: 16px; }
+  .card-title { font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 2px; color: var(--g); margin-bottom: 14px; }
+  .charts-row { display: grid; grid-template-columns: 1fr 280px; gap: 14px; }
+
+  /* Alerts */
+  .alert-list { display: flex; flex-direction: column; gap: 8px; }
+  .alert-item {
+    padding: 10px 12px;
+    border-radius: 3px;
+    border-left: 3px solid;
+    font-size: 12px;
+  }
+  .alert-item.crit { background: #1a0008; border-color: var(--r); }
+  .alert-item.warn { background: #1a1500; border-color: var(--y); }
+  .alert-item.safe { background: #001a0e; border-color: var(--g); }
+  .alert-drug { font-weight: 700; font-size: 13px; margin-bottom: 3px; }
+  .alert-item.crit .alert-drug { color: var(--r); }
+  .alert-item.warn .alert-drug { color: var(--y); }
+  .alert-item.safe .alert-drug { color: var(--g); }
+  .alert-msg { color: var(--muted); line-height: 1.4; }
+  .bar-track { height: 3px; background: #111; border-radius: 2px; margin-top: 7px; overflow: hidden; }
+  .bar-fill  { height: 100%; border-radius: 2px; }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: 2px; color: var(--muted); text-align: left; padding: 6px 10px; border-bottom: 1px solid #111; }
+  td { padding: 8px 10px; border-bottom: 1px solid #0d0d0d; color: var(--text); }
+  tr:hover td { background: #0c0c0c; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 2px; font-size: 10px; font-family: 'Share Tech Mono', monospace; letter-spacing: 1px; }
+  .badge.g { background: #001a0e; color: var(--g);  border: 1px solid #004d22; }
+  .badge.r { background: #1a0008; color: var(--r);  border: 1px solid #550022; }
+  .badge.y { background: #1a1500; color: var(--y);  border: 1px solid #554400; }
+  .badge.b { background: #001a2e; color: var(--b);  border: 1px solid #004466; }
+
+  /* Bottom grid */
+  .bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  /* Loading overlay */
+  .loading-bar {
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--g), transparent);
+    background-size: 200% 100%;
+    animation: loading 1s linear infinite;
+    display: none;
+  }
+  .loading-bar.active { display: block; }
+  @keyframes loading { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    padding: 12px 20px;
+    background: #050505;
+    border: 1px solid var(--g2);
+    border-radius: 3px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    color: var(--g);
+    z-index: 9999;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: .3s;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.err   { border-color: var(--r); color: var(--r); }
+
+  /* Scan line */
+  .scan { position: fixed; top: 0; left: 0; right: 0; height: 1px; background: var(--g); opacity: .07; animation: scan 5s ease-in-out infinite; pointer-events: none; }
+  @keyframes scan { 0% { top: 0; } 100% { top: 100vh; } }
+</style>
+</head>
+<body>
+
+<div class="scan"></div>
+<div class="toast" id="toast"></div>
+
+<!-- Ticker -->
+<div class="ticker">
+  <div class="ticker-inner" id="ticker-inner">
+    <span>NEON-FORECAST AI v1.0</span>
+    <span class="up">N02BE (Paracetamol) LOADED</span>
+    <span class="up">MODEL ACCURACY: AVG MAE 3.24u</span>
+    <span>API: http://127.0.0.1:8000</span>
+    <span class="up">8/8 MODELS READY</span>
+    <span class="dn">N02BE MAE: 9.50u — HIGH VOLUME DRUG</span>
+    <span class="up">N05C MAE: 0.82u — BEST MODEL</span>
+    <span>PHARMA SALES 2014-2019 | 2106 ROWS</span>
+    <span>NEON-FORECAST AI v1.0</span>
+    <span class="up">N02BE (Paracetamol) LOADED</span>
+    <span class="up">MODEL ACCURACY: AVG MAE 3.24u</span>
+    <span>API: http://127.0.0.1:8000</span>
+    <span class="up">8/8 MODELS READY</span>
+    <span class="dn">N02BE MAE: 9.50u — HIGH VOLUME DRUG</span>
+    <span class="up">N05C MAE: 0.82u — BEST MODEL</span>
+    <span>PHARMA SALES 2014-2019 | 2106 ROWS</span>
+  </div>
+</div>
+
+<!-- Header -->
+<header>
+  <div>
+    <div class="logo">NEON<span>-</span>FORECAST <span style="color:#333;font-size:14px">AI</span></div>
+    <div class="logo-sub">SALES &amp; DEMAND PREDICTION ENGINE · PHARMA EDITION</div>
+  </div>
+  <div class="header-right">
+    <div class="live-text">
+      <div class="live-dot"></div>
+      LIVE · PORT 8000
+    </div>
+    <div class="api-status offline" id="api-badge">API OFFLINE</div>
+  </div>
+</header>
+
+<div class="loading-bar" id="loading-bar"></div>
+
+<!-- Main layout -->
+<div class="layout">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+
+    <div>
+      <div class="sb-title">SELECT DRUG</div>
+      <div id="drug-list"></div>
+    </div>
+
+    <div class="sb-box">
+      <div class="sb-title">FORECAST SETTINGS</div>
+
+      <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Days ahead</div>
+      <div class="slider-row">
+        <input type="range" id="days-slider" min="1" max="30" value="7" oninput="document.getElementById('days-val').textContent=this.value">
+        <span class="slider-val" id="days-val">7</span>
+      </div>
+
+      <div style="font-size:12px;color:var(--muted);margin-top:12px;margin-bottom:2px">Current stock (units)</div>
+      <input type="number" class="stock-input" id="stock-input" value="200" min="0" placeholder="Enter current stock">
+
+      <button class="predict-btn" id="predict-btn" onclick="runPrediction()">
+        ⚡ RUN FORECAST
+      </button>
+    </div>
+
+    <div class="sb-box">
+      <div class="sb-title">MODEL STATS</div>
+      <div id="model-stats" style="font-size:12px;color:var(--muted);line-height:1.8">
+        Select a drug to view stats
+      </div>
+    </div>
+
+    <div class="sb-box">
+      <div class="sb-title">UPLOAD CSV</div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:8px">
+        Required columns: datum, M01AB, M01AE, N02BA, N02BE, N05B, N05C, R03, R06
+      </div>
+      <input type="file" id="csv-file" accept=".csv" style="display:none" onchange="uploadCSV(this)">
+      <button class="predict-btn" id="upload-btn" onclick="document.getElementById('csv-file').click()">
+        UPLOAD NEW CSV
+      </button>
+      <div id="upload-status" style="margin-top:8px;font-size:11px;font-family:'Share Tech Mono',monospace;display:none;padding:8px;border-radius:3px;line-height:1.6"></div>
+    </div>
+
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- KPIs -->
+    <div class="kpi-row">
+      <div class="kpi g">
+        <div class="kpi-label">SELECTED DRUG</div>
+        <div class="kpi-val g" id="kpi-drug">N02BE</div>
+        <div class="kpi-sub">Analgesic Paracetamol</div>
+      </div>
+      <div class="kpi r">
+        <div class="kpi-label">STOCK-OUT IN</div>
+        <div class="kpi-val r" id="kpi-stockout">— days</div>
+        <div class="kpi-sub" id="kpi-stockout-sub">Run forecast first</div>
+      </div>
+      <div class="kpi b">
+        <div class="kpi-label">TOTAL DEMAND (FORECAST)</div>
+        <div class="kpi-val b" id="kpi-total">— units</div>
+        <div class="kpi-sub" id="kpi-period">Next 7 days</div>
+      </div>
+      <div class="kpi y">
+        <div class="kpi-label">MODEL CONFIDENCE</div>
+        <div class="kpi-val y" id="kpi-conf">—</div>
+        <div class="kpi-sub" id="kpi-mae">MAE: — units</div>
+      </div>
+    </div>
+
+    <!-- Charts row -->
+    <div class="charts-row">
+
+      <div class="chart-card">
+        <div class="card-title" id="chart-title">DEMAND FORECAST — SELECT A DRUG AND CLICK RUN</div>
+        <div id="forecast-chart"></div>
+      </div>
+
+      <div class="chart-card">
+        <div class="card-title">STOCK-OUT ALERTS</div>
+        <div class="alert-list" id="alert-list">
+          <div style="font-size:12px;color:var(--muted);text-align:center;padding:20px 0">
+            Loading inventory data...
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Bottom grid -->
+    <div class="bottom-grid">
+
+      <div class="chart-card">
+        <div class="card-title">DAILY PREDICTION BREAKDOWN</div>
+        <div id="bar-chart"></div>
+      </div>
+
+      <div class="chart-card">
+        <div class="card-title">FULL INVENTORY STATUS</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>DRUG</th>
+                <th>AVG DAILY</th>
+                <th>DAYS LEFT</th>
+                <th>RISK</th>
+              </tr>
+            </thead>
+            <tbody id="inv-table-body">
+              <tr><td colspan="4" style="color:var(--muted);text-align:center">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<script>
+const API = 'http://127.0.0.1:8000';
+
+const DRUG_INFO = {
+  M01AB: { name: 'Anti-Inflammatory',  shortName: 'Acetic',      mae: 2.17, color: '#00ff9f' },
+  M01AE: { name: 'Anti-Inflammatory',  shortName: 'Propionic',   mae: 1.63, color: '#00cfff' },
+  N02BA: { name: 'Analgesic',          shortName: 'Aspirin',     mae: 1.53, color: '#00ff9f' },
+  N02BE: { name: 'Analgesic',          shortName: 'Paracetamol', mae: 9.50, color: '#ffcc00' },
+  N05B:  { name: 'Tranquilizer',       shortName: 'Anxiety',     mae: 3.35, color: '#00cfff' },
+  N05C:  { name: 'Sedative',           shortName: 'Sleeping',    mae: 0.82, color: '#00ff9f' },
+  R03:   { name: 'Asthma/Bronchitis',  shortName: 'Respiratory', mae: 5.28, color: '#ff0055' },
+  R06:   { name: 'Antihistamine',      shortName: 'Allergy',     mae: 1.60, color: '#00cfff' },
+};
+
+let activeDrug     = 'N02BE';
+let forecastChart  = null;
+let barChart       = null;
+
+// ── Utilities ─────────────────────────────────────────────────────────────
+function showLoading(on) {
+  document.getElementById('loading-bar').className = on ? 'loading-bar active' : 'loading-bar';
+  document.getElementById('predict-btn').disabled  = on;
+}
+
+function toast(msg, isErr = false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className   = 'toast show' + (isErr ? ' err' : '');
+  setTimeout(() => el.className = 'toast', 3000);
+}
+
+// ── Render drug list in sidebar ───────────────────────────────────────────
+function renderDrugList() {
+  const el = document.getElementById('drug-list');
+  el.innerHTML = Object.entries(DRUG_INFO).map(([code, info]) => `
+    <div class="drug-btn ${code === activeDrug ? 'active' : ''}" onclick="selectDrug('${code}')">
+      <div>
+        <div class="drug-code">${code}</div>
+        <div class="drug-label">${info.shortName}</div>
+      </div>
+      <div class="drug-mae">±${info.mae}u</div>
+    </div>
+  `).join('');
+}
+
+function selectDrug(code) {
+  activeDrug = code;
+  renderDrugList();
+  updateModelStats();
+
+  const info = DRUG_INFO[code];
+  document.getElementById('kpi-drug').textContent = code;
+  document.querySelector('.kpi.g .kpi-sub').textContent = info.name + ' · ' + info.shortName;
+  document.getElementById('kpi-conf').textContent = info.mae < 3 ? 'EXCELLENT' : info.mae < 7 ? 'GOOD' : 'OK';
+  document.getElementById('kpi-mae').textContent  = 'MAE: ' + info.mae + ' units';
+}
+
+function updateModelStats() {
+  const info = DRUG_INFO[activeDrug];
+  const conf = info.mae < 3 ? 'EXCELLENT' : info.mae < 7 ? 'GOOD' : 'OK';
+  const confColor = info.mae < 3 ? '#00ff9f' : info.mae < 7 ? '#00cfff' : '#ffcc00';
+  document.getElementById('model-stats').innerHTML = `
+    <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #111">
+      <span>Drug Code</span><span style="color:var(--g)">${activeDrug}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #111">
+      <span>Category</span><span style="color:var(--text)">${DRUG_INFO[activeDrug].name}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #111">
+      <span>Model MAE</span><span style="color:var(--y)">±${info.mae} units</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:3px 0">
+      <span>Confidence</span><span style="color:${confColor}">${conf}</span>
+    </div>
+  `;
+}
+
+// ── Check API health ──────────────────────────────────────────────────────
+async function checkAPI() {
+  try {
+    const res  = await fetch(`${API}/`);
+    const data = await res.json();
+    document.getElementById('api-badge').textContent = 'API ONLINE';
+    document.getElementById('api-badge').className   = 'api-status online';
+    toast('API connected — ' + data.models_loaded + ' models loaded');
+  } catch {
+    document.getElementById('api-badge').textContent = 'API OFFLINE';
+    document.getElementById('api-badge').className   = 'api-status offline';
+    toast('API offline — start uvicorn backend.main:app --reload', true);
+  }
+}
+
+// ── Run prediction ────────────────────────────────────────────────────────
+async function runPrediction() {
+  const days  = parseInt(document.getElementById('days-slider').value);
+  const stock = parseFloat(document.getElementById('stock-input').value) || 200;
+
+  showLoading(true);
+  try {
+    const res  = await fetch(`${API}/predict/${activeDrug}`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ days_ahead: days, current_stock: stock }),
+    });
+
+    if (!res.ok) throw new Error('API error: ' + res.status);
+    const data = await res.json();
+
+    updateKPIs(data);
+    renderForecastChart(data);
+    renderBarChart(data);
+    document.getElementById('chart-title').textContent =
+      `DEMAND FORECAST — ${activeDrug} (${DRUG_INFO[activeDrug].shortName}) · NEXT ${days} DAYS`;
+
+    toast(`Forecast complete — ${data.total_predicted} units predicted`);
+  } catch (e) {
+    toast('Forecast failed: ' + e.message, true);
+  } finally {
+    showLoading(false);
+  }
+}
+
+// ── Update KPI cards ──────────────────────────────────────────────────────
+function updateKPIs(data) {
+  const days = data.days_ahead;
+
+  // Stock-out
+  if (data.days_until_stockout !== null) {
+    document.getElementById('kpi-stockout').textContent     = data.days_until_stockout + ' days';
+    document.getElementById('kpi-stockout-sub').textContent =
+      data.days_until_stockout <= 7 ? '⚠ REORDER NOW' : 'Monitor stock';
+  } else {
+    document.getElementById('kpi-stockout').textContent     = '> ' + days + 'd';
+    document.getElementById('kpi-stockout-sub').textContent = 'Stock sufficient';
+  }
+
+  document.getElementById('kpi-total').textContent  = data.total_predicted.toFixed(0) + ' u';
+  document.getElementById('kpi-period').textContent = 'Next ' + days + ' days';
+  document.getElementById('kpi-conf').textContent   = data.confidence;
+  document.getElementById('kpi-mae').textContent    = 'MAE: ' + DRUG_INFO[activeDrug].mae + ' units';
+}
+
+// ── Forecast line chart ───────────────────────────────────────────────────
+function renderForecastChart(data) {
+  if (forecastChart) { forecastChart.destroy(); forecastChart = null; }
+
+  const preds   = data.predictions;
+  const days    = preds.length;
+  const labels  = Array.from({ length: days }, (_, i) => 'Day ' + (i + 1));
+  const color   = DRUG_INFO[activeDrug].color;
+
+  // Stockout marker
+  const annotations = [];
+  if (data.days_until_stockout !== null) {
+    annotations.push({
+      x: 'Day ' + data.days_until_stockout,
+      borderColor: '#ff0055',
+      label: {
+        text: 'STOCKOUT RISK',
+        style: { background: '#1a0008', color: '#ff0055', fontFamily: 'Share Tech Mono', fontSize: '10px' }
+      }
+    });
+  }
+
+  forecastChart = new ApexCharts(document.getElementById('forecast-chart'), {
+    chart: {
+      type: 'area', height: 200,
+      background: 'transparent',
+      toolbar: { show: false },
+      animations: { enabled: true, speed: 600 },
+    },
+    series: [{ name: 'Predicted Units', data: preds }],
+    labels,
+    stroke: { curve: 'smooth', width: 2, colors: [color] },
+    fill: {
+      type: 'gradient',
+      gradient: { shadeIntensity: 1, opacityFrom: 0.25, opacityTo: 0.0, colorStops: [{ offset: 0, color, opacity: 0.3 }, { offset: 100, color, opacity: 0 }] }
+    },
+    markers: { size: 3, colors: [color], strokeWidth: 0 },
+    xaxis: {
+      categories: labels,
+      labels: { style: { colors: '#444', fontFamily: 'Share Tech Mono', fontSize: '10px' } },
+      axisBorder: { color: '#1a1a1a' }, axisTicks: { color: '#1a1a1a' }
+    },
+    yaxis: {
+      labels: { style: { colors: '#444', fontFamily: 'Share Tech Mono', fontSize: '10px' } }
+    },
+    grid: { borderColor: '#111', strokeDashArray: 3 },
+    tooltip: {
+      theme: 'dark',
+      style: { fontFamily: 'Share Tech Mono', fontSize: '11px' },
+      y: { formatter: v => v.toFixed(1) + ' units' }
+    },
+    annotations: { xaxis: annotations },
+    theme: { mode: 'dark' },
+  });
+  forecastChart.render();
+}
+
+// ── Bar chart ─────────────────────────────────────────────────────────────
+function renderBarChart(data) {
+  if (barChart) { barChart.destroy(); barChart = null; }
+
+  const preds  = data.predictions;
+  const labels = Array.from({ length: preds.length }, (_, i) => 'D' + (i + 1));
+  const color  = DRUG_INFO[activeDrug].color;
+
+  barChart = new ApexCharts(document.getElementById('bar-chart'), {
+    chart: {
+      type: 'bar', height: 180,
+      background: 'transparent',
+      toolbar: { show: false },
+    },
+    series: [{ name: 'Units', data: preds }],
+    colors: [color],
+    plotOptions: { bar: { borderRadius: 2, columnWidth: '70%' } },
+    xaxis: {
+      categories: labels,
+      labels: { style: { colors: '#444', fontFamily: 'Share Tech Mono', fontSize: '10px' } },
+      axisBorder: { color: '#1a1a1a' }, axisTicks: { color: '#1a1a1a' }
+    },
+    yaxis: {
+      labels: { style: { colors: '#444', fontFamily: 'Share Tech Mono', fontSize: '10px' } }
+    },
+    grid: { borderColor: '#111' },
+    tooltip: {
+      theme: 'dark',
+      style: { fontFamily: 'Share Tech Mono', fontSize: '11px' },
+      y: { formatter: v => v.toFixed(1) + ' u' }
+    },
+    theme: { mode: 'dark' },
+    dataLabels: { enabled: false },
+  });
+  barChart.render();
+}
+
+// ── Load inventory from API ───────────────────────────────────────────────
+async function loadInventory() {
+  try {
+    const res  = await fetch(`${API}/inventory`);
+    const data = await res.json();
+    renderAlerts(data.items);
+    renderTable(data.items);
+  } catch {
+    document.getElementById('alert-list').innerHTML =
+      '<div style="font-size:11px;color:var(--r);text-align:center;padding:10px">API offline — start server first</div>';
+  }
+}
+
+function renderAlerts(items) {
+  const top3 = items.slice(0, 4);
+  document.getElementById('alert-list').innerHTML = top3.map(item => {
+    const cls  = item.risk_level === 'CRITICAL' ? 'crit' : item.risk_level === 'WARNING' ? 'warn' : 'safe';
+    const pct  = Math.min(100, Math.round((item.days_until_stockout / 30) * 100));
+    const fill = item.risk_level === 'CRITICAL' ? '#ff0055' : item.risk_level === 'WARNING' ? '#ffcc00' : '#00ff9f';
+    return `
+      <div class="alert-item ${cls}">
+        <div class="alert-drug">${item.drug_code} · ${item.drug_name.replace(/_/g,' ')}</div>
+        <div class="alert-msg">
+          ${item.days_until_stockout} days left · avg ${item.avg_daily_demand} u/day
+          ${item.risk_level === 'CRITICAL' ? ' · REORDER NOW' : ''}
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${fill}"></div></div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderTable(items) {
+  document.getElementById('inv-table-body').innerHTML = items.map(item => {
+    const cls = item.risk_level === 'CRITICAL' ? 'r' : item.risk_level === 'WARNING' ? 'y' : 'g';
+    return `
+      <tr>
+        <td>
+          <span style="font-family:'Share Tech Mono',monospace;color:var(--g)">${item.drug_code}</span>
+          <br><span style="font-size:10px;color:var(--muted)">${item.drug_name.replace(/_/g,' ')}</span>
+        </td>
+        <td style="font-family:'Share Tech Mono',monospace">${item.avg_daily_demand} u</td>
+        <td style="font-family:'Share Tech Mono',monospace">${item.days_until_stockout}d</td>
+        <td><span class="badge ${cls}">${item.risk_level}</span></td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// -- Upload CSV ----------------------------------------------------
+async function uploadCSV(input) {
+  if (!input.files.length) return;
+
+  const file       = input.files[0];
+  const statusEl   = document.getElementById('upload-status');
+  const uploadBtn  = document.getElementById('upload-btn');
+
+  // Show file name picked
+  statusEl.style.display     = 'block';
+  statusEl.style.background  = '#0a1f15';
+  statusEl.style.color       = '#00ff9f';
+  statusEl.style.border      = '1px solid #0f2e1f';
+  statusEl.textContent       = 'Selected: ' + file.name;
+
+  // Validate size (max 10MB)
+  if (file.size > 10 * 1024 * 1024) {
+    statusEl.style.background = '#1a0008';
+    statusEl.style.color      = '#ff0055';
+    statusEl.style.border     = '1px solid #550022';
+    statusEl.textContent      = 'ERROR: File too large (max 10MB)';
+    return;
+  }
+
+  uploadBtn.disabled    = true;
+  uploadBtn.textContent = 'UPLOADING...';
+  showLoading(true);
+
+  statusEl.textContent = 'Uploading ' + file.name + '...';
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res  = await fetch(`${API}/upload`, { method: 'POST', body: formData });
+    const data = await res.json();
+
+    if (!res.ok) {
+      // Server returned an error
+      throw new Error(data.detail || 'Server error ' + res.status);
+    }
+
+    // Success
+    statusEl.style.background = '#0a1f15';
+    statusEl.style.color      = '#00ff9f';
+    statusEl.style.border     = '1px solid #004d22';
+    statusEl.innerHTML        =
+      'SUCCESS<br>' +
+      'Rows uploaded: ' + (data.rows || '?') + '<br>' +
+      'Pipeline: complete<br>' +
+      data.note;
+
+    toast('CSV uploaded — ' + (data.rows || '?') + ' rows processed');
+    await loadInventory();
+
+  } catch (e) {
+    statusEl.style.background = '#1a0008';
+    statusEl.style.color      = '#ff0055';
+    statusEl.style.border     = '1px solid #550022';
+    statusEl.textContent      = 'FAILED: ' + e.message;
+    toast('Upload failed: ' + e.message, true);
+  } finally {
+    uploadBtn.disabled    = false;
+    uploadBtn.textContent = 'UPLOAD NEW CSV';
+    showLoading(false);
+    // Reset file input so same file can be re-selected
+    input.value = '';
+  }
+
+
+}
+// ── Init ──────────────────────────────────────────────────────────────────
+renderDrugList();
+selectDrug('N02BE');
+checkAPI();
+setTimeout(loadInventory, 800);
+</script>
+
+</body>
+</html>

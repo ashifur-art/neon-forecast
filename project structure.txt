@@ -1,0 +1,39 @@
+NEON-FORECAST AI — Project Structure
+=====================================
+
+neon-forecast/
+│
+├── requirements.txt          ← Python dependencies
+│
+├── data/
+│   ├── raw/                  ← Drop your CSV files here
+│   └── processed/            ← Auto-generated tensors saved here
+│
+├── models/
+│   └── saved/                ← Trained .pth model files saved here
+│
+├── backend/
+│   ├── main.py               ← FastAPI app entry point  (Phase 4)
+│   ├── model.py              ← LSTM model definition    (Phase 3)
+│   ├── train.py              ← Training script          (Phase 3)
+│   └── data_engine.py        ← CSV → Tensor pipeline   (Phase 2)
+│
+├── frontend/
+│   ├── index.html            ← Main dashboard           (Phase 5)
+│   ├── style.css             ← Cyberpunk theme          (Phase 5)
+│   └── app.js                ← API communication        (Phase 5)
+│
+└── sample_data/
+    └── pharmacy_sales.csv    ← Sample data to test with (Phase 2)
+
+
+HOW TO RUN (after all phases are complete)
+==========================================
+Step 1:  cd neon-forecast
+Step 2:  pip install -r requirements.txt
+Step 3:  python backend/train.py          ← trains the model once
+Step 4:  uvicorn backend.main:app --reload  ← starts the API server
+Step 5:  Open frontend/index.html in browser
+
+API will run at: http://127.0.0.1:8000
+API docs at:     http://127.0.0.1:8000/docs
